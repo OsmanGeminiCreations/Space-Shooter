@@ -1,0 +1,1516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Arcade Plane Shooter</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+        
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            height: 100vh;
+            margin: 0;
+            background-color: #0d1117;
+            color: #ffffff;
+            font-family: 'Press Start 2P', monospace;
+            overflow: hidden;
+            text-shadow: 2px 2px #000000;
+        }
+
+        #gameContainer {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            height: 80vh;
+            max-height: 800px;
+            background-color: #000000;
+            border: 4px solid #00ffff;
+            border-radius: 15px;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+        }
+
+        #gameControls {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 10px;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            z-index: 2;
+            pointer-events: none;
+        }
+
+        .control-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .game-button {
+            background: #4a4a4a;
+            color: #00ffff;
+            border: 2px solid #00ffff;
+            border-radius: 5px;
+            padding: 15px 25px;
+            font-family: 'Press Start 2P', monospace;
+            font-size: 0.8rem;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #00ffff;
+            transition: all 0.1s ease-in-out;
+            text-shadow: 1px 1px #000000;
+            margin: 5px;
+            pointer-events: auto;
+        }
+        
+        .game-button.disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            box-shadow: 0 2px 0 #00ffff;
+        }
+
+        .game-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 7px 0 #00ffff;
+            background: #6a6a6a;
+        }
+        
+        .game-button:active {
+            transform: translateY(3px);
+            box-shadow: 0 2px 0 #00ffff;
+        }
+        
+        #messageBox {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.8);
+            padding: 20px 40px;
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            font-size: 1.2rem;
+            text-align: center;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 0 10px #00ffff;
+            width: 80%;
+            max-width: 400px;
+        }
+        
+        /* Updated store container styling for responsiveness */
+        #storeContainer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: rgba(0, 0, 0, 0.9);
+            padding: 15px; /* Reduced padding */
+            border: 2px solid #00ffff;
+            border-radius: 10px;
+            font-size: 1rem;
+            text-align: center;
+            display: none;
+            z-index: 100;
+            box-shadow: 0 0 10px #00ffff;
+            width: 90%; /* Increased relative width */
+            max-width: 450px; /* Slightly larger max-width */
+            max-height: 80%; /* Added max-height for scrolling */
+            overflow-y: auto;
+        }
+        
+        #storeContainer h2 {
+            font-size: 1.5rem;
+            color: #00ffff;
+            margin-top: 0;
+            margin-bottom: 10px;
+        }
+        
+        .store-item {
+            border: 1px solid #00ffff;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        
+        .store-item-price {
+            color: #ffff00;
+            font-size: 0.8rem;
+        }
+
+        /* Responsive styling for smaller screens */
+        @media (max-width: 600px) {
+            #gameContainer {
+                height: 90vh;
+                width: 95%;
+            }
+            .game-button {
+                padding: 10px 15px;
+                font-size: 0.6rem;
+            }
+            #storeContainer h2 {
+                font-size: 1.2rem;
+            }
+            #storeContainer p {
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="gameContainer">
+        <canvas id="gameCanvas"></canvas>
+        <div id="messageBox"></div>
+        <div id="storeContainer">
+            <h2>Power-Up Store</h2>
+            <p>Coins: <span id="coinsDisplay">0</span></p>
+            <div class="store-item">
+                <p>Shield Upgrade: <span id="shieldLevelDisplay"></span></p>
+                <p class="store-item-price">Cost: <span id="shieldCostDisplay">25</span> coins</p>
+                <button id="buyShieldBtn" class="game-button">Buy Shield</button>
+            </div>
+            <div class="store-item">
+                <p>40s 1.5x Score Multiplier</p>
+                <p class="store-item-price">Cost: 50 coins</p>
+                <button id="buyTempMultiplierBtn" class="game-button">Buy Upgrade</button>
+            </div>
+            <div class="store-item">
+                <p>One-Game 1.5x Score Multiplier</p>
+                <p class="store-item-price">Cost: 100 coins</p>
+                <button id="buyOneGameMultiplierBtn" class="game-button">Buy Upgrade</button>
+            </div>
+            <div class="store-item" id="powerUpRainItem">
+                <p>Permanent Power-Up Rain</p>
+                <p class="store-item-price">Cost: 400 coins</p>
+                <button id="buyPowerUpRainBtn" class="game-button">Buy Upgrade</button>
+            </div>
+            <button id="backToMenuBtn" class="game-button">Back to Menu</button>
+        </div>
+        <div id="gameControls">
+            <button id="leftButton" class="game-button">Left</button>
+            <button id="rightButton" class="game-button">Right</button>
+            <button id="startButton" class="game-button">Start Game</button>
+            <button id="storeButton" class="game-button">Store</button>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import Firebase modules
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, getDoc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // Use global variables provided by the Canvas environment
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+        let db = null;
+        let auth = null;
+        let userId = null;
+        let unsubscribeHighScore = null;
+        let unsubscribeUserData = null;
+        
+        // Game setup variables
+        let canvas;
+        let ctx;
+        let messageBox;
+        let storeContainer;
+        let leftButton;
+        let rightButton;
+        let startButton;
+        let storeButton;
+        let backToMenuBtn;
+
+        let coinsDisplay;
+        let shieldLevelDisplay;
+        let shieldCostDisplay;
+        let buyShieldBtn;
+        let buyTempMultiplierBtn;
+        let buyOneGameMultiplierBtn;
+        let powerUpRainItem;
+        let buyPowerUpRainBtn;
+
+        let isGameRunning = false;
+        let isTransitioning = false;
+        let isBossFight = false;
+        let isFightingHelpers = false;
+        let isPowerUpRain = false;
+        let score = 0;
+        let highScore = 0;
+        let lastPlayerBulletTime = 0;
+        const playerBulletCooldown = 150;
+        let enemySpawnRate = 1200;
+        let lastEnemySpawnTime = 0;
+        let enemiesKilledThisLevel = 0;
+        
+        let stars = [];
+        const numStars = 100;
+        
+        let enemyBullets = [];
+        
+        // Interval for power-up spawning
+        let powerUpSpawnInterval = null;
+
+        // Game level variables
+        const planets = ["Mercury", "Venus", "Earth", "Mars", "Jupiter", "Saturn", "Uranus", "Neptune", "Pluto"];
+        let currentPlanetIndex = 0;
+        let previousScoreLevel = 0;
+        const enemiesPerPlanet = 10;
+
+        // Player data for coins and power-ups
+        let coins = 0;
+        let shieldLevel = 0;
+        let tempScoreMultiplierPurchased = 0;
+        let oneGameScoreMultiplierPurchased = 0;
+        let powerUpRainPermanent = false;
+        
+        // Game state power-ups
+        let shieldActive = false;
+        let shieldDuration = 0;
+        let shieldEndTime = 0;
+        let scoreMultiplierActive = false;
+        let scoreMultiplier = 1;
+        let scoreMultiplierEndTime = 0;
+        let bossRevives = 5;
+        let playerInvincible = false;
+        let invincibleEndTime = 0;
+        let helpersToDefeat = 0;
+        let helpersDefeated = 0;
+
+        const baseShieldDuration = 10000;
+        const baseShieldCost = 25;
+        const tempMultiplierCost = 50;
+        const oneGameMultiplierCost = 100;
+        const powerUpRainCost = 400;
+
+        const player = {
+            x: 0,
+            y: 0,
+            width: 50,
+            height: 30,
+            speed: 5,
+            color: '#00ff00',
+            movingLeft: false,
+            movingRight: false,
+            bullets: [],
+            getHitbox() {
+                return {
+                    x: this.x + this.width * 0.1,
+                    y: this.y,
+                    width: this.width * 0.8,
+                    height: this.height
+                };
+            },
+            resetPosition() {
+                this.x = (canvas.width - this.width) / 2;
+                this.y = canvas.height - this.height - 80;
+            }
+        };
+        
+        class Shield {
+            constructor(x, y, radius) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.color = 'rgba(0, 255, 255, 0.4)';
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = this.color;
+                ctx.fill();
+                ctx.strokeStyle = '#00ffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+        let shield = null;
+
+        class Obstacle {
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.color = '#ff00ff';
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+            getHitbox() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+        }
+        let obstacles = [];
+        
+        class Enemy {
+            constructor(x, y, size, speed) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.speed = speed;
+                this.color = '#ff0000';
+                this.lastBulletTime = Date.now();
+                this.bulletCooldown = 2000;
+                this.isMinion = false;
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y - this.size);
+                ctx.lineTo(this.x + this.size, this.y + this.size);
+                ctx.lineTo(this.x - this.size, this.y + this.size);
+                ctx.closePath();
+                ctx.fill();
+            }
+            update() {
+                this.y += this.speed;
+                this.shoot();
+            }
+            shoot() {
+                const currentTime = Date.now();
+                if (currentTime - this.lastBulletTime > this.bulletCooldown) {
+                    const bulletX = this.x - 2.5;
+                    const bulletY = this.y + this.size;
+                    enemyBullets.push(new EnemyBullet(bulletX, bulletY));
+                    this.lastBulletTime = currentTime;
+                }
+            }
+            getHitbox() {
+                const hitboxSize = this.size * 1.6;
+                return {
+                    x: this.x - hitboxSize / 2,
+                    y: this.y - hitboxSize / 2,
+                    width: hitboxSize,
+                    height: hitboxSize
+                };
+            }
+        }
+        
+        class Minion extends Enemy {
+            constructor(x, y, size, speed) {
+                super(x, y, size, speed);
+                this.color = '#ffcc00';
+                this.isMinion = true;
+                this.lastBombTime = Date.now();
+                this.bombCooldown = 5000;
+            }
+            update() {
+                this.y += this.speed;
+                // Minions move towards player
+                const dx = player.x - this.x;
+                this.x += Math.sign(dx) * 1.5;
+                this.throwBomb();
+            }
+            throwBomb() {
+                const currentTime = Date.now();
+                if (currentTime - this.lastBombTime > this.bombCooldown) {
+                    bombs.push(new Bomb(this.x + this.size / 2, this.y + this.size, player.x, player.y));
+                    this.lastBombTime = currentTime;
+                }
+            }
+        }
+        let enemies = [];
+
+        class PlayerBullet {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 5;
+                this.height = 10;
+                this.speed = 10;
+                this.color = '#ffff00';
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+            update() {
+                this.y -= this.speed;
+            }
+            getHitbox() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+        }
+        
+        class EnemyBullet {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.width = 5;
+                this.height = 10;
+                this.speed = 4;
+                this.color = '#ff69b4';
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+            }
+            update() {
+                this.y += this.speed;
+            }
+            getHitbox() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+        }
+        
+        // New class for a homing bullet
+        class HomingBullet extends EnemyBullet {
+            constructor(x, y, targetX, targetY) {
+                super(x, y);
+                this.color = '#ff0000'; // Make it stand out
+                this.speed = 4;
+                const dx = targetX - this.x;
+                const dy = targetY - this.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                this.vx = (dx / distance) * this.speed;
+                this.vy = (dy / distance) * this.speed;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+        }
+
+        class Bomb {
+            constructor(x, y, targetX, targetY) {
+                this.x = x;
+                this.y = y;
+                this.size = 10;
+                this.color = '#ff4500';
+                this.speed = 2;
+                this.vx = (targetX - x) / 100;
+                this.vy = (targetY - y) / 100;
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            update() {
+                this.x += this.vx * this.speed;
+                this.y += this.vy * this.speed;
+            }
+            getHitbox() {
+                return {
+                    x: this.x - this.size,
+                    y: this.y - this.size,
+                    width: this.size * 2,
+                    height: this.size * 2
+                };
+            }
+        }
+        let bombs = [];
+        
+        class PowerUp {
+            constructor(x, y, type) {
+                this.x = x;
+                this.y = y;
+                this.size = 20;
+                this.type = type;
+                this.speed = 6; // **MODIFIED: Power-ups now fall much faster**
+                this.color = '#ffffff';
+                if (this.type === 'shield') {
+                    this.color = '#00ffff';
+                } else if (this.type === 'multiplier') {
+                    this.color = '#ffff00';
+                }
+                
+                // New properties for "drunk" movement
+                this.vx = (Math.random() - 0.5) * 10; // **MODIFIED: More frantic horizontal "drunk" movement**
+                this.lastDirChange = Date.now();
+                this.dirChangeCooldown = 1000; // Change direction every second
+            }
+            draw() {
+                ctx.fillStyle = this.color;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.size / 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            update() {
+                this.y += this.speed;
+                // Update horizontal position for "drunk" movement
+                this.x += this.vx;
+
+                // Change direction periodically
+                if (Date.now() - this.lastDirChange > this.dirChangeCooldown) {
+                    this.vx = (Math.random() - 0.5) * 10; // Change to a new random horizontal velocity
+                    this.lastDirChange = Date.now();
+                }
+
+                // Bounce off canvas edges
+                if (this.x < 0 || this.x > canvas.width) {
+                    this.vx *= -1;
+                }
+            }
+            getHitbox() {
+                return {
+                    x: this.x - this.size / 2,
+                    y: this.y - this.size / 2,
+                    width: this.size,
+                    height: this.size
+                };
+            }
+        }
+        let powerUps = [];
+
+        class Boss {
+            constructor() {
+                this.width = canvas.width * 0.8;
+                this.height = 100;
+                this.x = (canvas.width - this.width) / 2;
+                this.y = 50;
+                // Boss lives increase with each planet
+                this.lives = 10 + (currentPlanetIndex * 5); 
+                this.hits = 0;
+                this.speedX = 2;
+                this.color = '#8a2be2';
+                this.isHit = false;
+                this.lastAttackTime = Date.now();
+                // Boss attacks more frequently now
+                this.attackCooldown = 1500;
+                this.flashTime = 0;
+            }
+            draw() {
+                let displayColor = this.color;
+                if (this.flashTime > Date.now()) {
+                    if (this.hits > 0) {
+                        displayColor = 'rgba(255, 255, 0, 0.8)'; // Yellow flash for a hit
+                    } else {
+                        displayColor = 'rgba(255, 255, 255, 0.8)'; // White flash for life lost
+                    }
+                }
+                
+                ctx.fillStyle = displayColor;
+                ctx.fillRect(this.x, this.y, this.width, this.height);
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '16px "Press Start 2P"';
+                ctx.textAlign = 'center';
+                ctx.fillText(`Boss Lives: ${this.lives}`, canvas.width / 2, this.y + this.height + 20);
+                ctx.textAlign = 'left';
+            }
+            update() {
+                this.x += this.speedX;
+                if (this.x <= 0 || this.x + this.width >= canvas.width) {
+                    this.speedX *= -1;
+                }
+
+                const currentTime = Date.now();
+                if (currentTime - this.lastAttackTime > this.attackCooldown) {
+                    this.attack();
+                    this.lastAttackTime = currentTime;
+                }
+            }
+            attack() {
+                const attackType = Math.random();
+                if (attackType < 0.3) {
+                    // Shoot regular bullets to the sides
+                    enemyBullets.push(new EnemyBullet(this.x + 20, this.y + this.height));
+                    enemyBullets.push(new EnemyBullet(this.x + this.width - 25, this.y + this.height));
+                } else if (attackType < 0.6) {
+                    // NEW: Fire a homing bullet directly at the player
+                    enemyBullets.push(new HomingBullet(this.x + this.width / 2, this.y + this.height, player.x, player.y));
+                } else if (attackType < 0.8) {
+                    // Throw a bomb
+                    bombs.push(new Bomb(this.x + this.width / 2, this.y + this.height, player.x, player.y));
+                } else {
+                    // Spawn a minion
+                    const minionX = this.x + Math.random() * this.width;
+                    const minionSize = Math.random() * 10 + 5;
+                    const minionSpeed = Math.random() * 2 + 1;
+                    enemies.push(new Minion(minionX, this.y + minionSize, minionSize, minionSpeed));
+                }
+            }
+            getHitbox() {
+                return {
+                    x: this.x,
+                    y: this.y,
+                    width: this.width,
+                    height: this.height
+                };
+            }
+        }
+        let boss = null;
+        
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < numStars; i++) {
+                stars.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    size: Math.random() * 2,
+                    speed: Math.random() * 0.5 + 0.1,
+                    color: `rgba(255, 255, 255, ${Math.random() * 0.8 + 0.2})`
+                });
+            }
+        }
+        
+        function drawStars() {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            stars.forEach(star => {
+                ctx.fillStyle = star.color;
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+        }
+
+        function resizeCanvas() {
+            const container = document.getElementById('gameContainer');
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            player.resetPosition();
+            initStars();
+        }
+
+        function handleKeydown(e) {
+            if (!isGameRunning) return;
+            if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
+                player.movingLeft = true;
+            }
+            if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
+                player.movingRight = true;
+            }
+        }
+
+        function handleKeyup(e) {
+            if (!isGameRunning) return;
+            if (e.key === 'ArrowLeft' || e.key.toLowerCase() === 'a') {
+                player.movingLeft = false;
+            }
+            if (e.key === 'ArrowRight' || e.key.toLowerCase() === 'd') {
+                player.movingRight = false;
+            }
+        }
+        
+        function drawPlayer() {
+            // Player flashing when invincible
+            if (playerInvincible && Math.floor(Date.now() / 100) % 2 === 0) {
+                 return; // Don't draw the player
+            }
+            
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.moveTo(player.x + player.width / 2, player.y);
+            ctx.lineTo(player.x, player.y + player.height);
+            ctx.lineTo(player.x + player.width, player.y + player.height);
+            ctx.closePath();
+            ctx.fill();
+            
+            if (shieldActive) {
+                shield.x = player.x + player.width / 2;
+                shield.y = player.y + player.height / 2;
+                shield.draw();
+            }
+        }
+
+        function updatePlayer() {
+            if (player.movingLeft && player.x > 0) {
+                player.x -= player.speed;
+            }
+            if (player.movingRight && player.x < canvas.width - player.width) {
+                player.x += player.speed;
+            }
+
+            if (shieldActive && Date.now() > shieldEndTime) {
+                shieldActive = false;
+            }
+            if (scoreMultiplierActive && Date.now() > scoreMultiplierEndTime) {
+                scoreMultiplierActive = false;
+                scoreMultiplier = 1;
+            }
+            if (playerInvincible && Date.now() > invincibleEndTime) {
+                playerInvincible = false;
+            }
+        }
+
+        function shootPlayerBullet() {
+            if (Date.now() - lastPlayerBulletTime > playerBulletCooldown) {
+                const bulletX = player.x + player.width / 2 - 2.5;
+                const bulletY = player.y;
+                player.bullets.push(new PlayerBullet(bulletX, bulletY));
+                lastPlayerBulletTime = Date.now();
+            }
+        }
+        
+        function draw() {
+            drawStars();
+            drawPlayer();
+            player.bullets.forEach(bullet => bullet.draw());
+            enemies.forEach(enemy => enemy.draw());
+            obstacles.forEach(obstacle => obstacle.draw());
+            enemyBullets.forEach(bullet => bullet.draw());
+            bombs.forEach(bomb => bomb.draw());
+            powerUps.forEach(pu => pu.draw());
+            if (isBossFight && boss && !isFightingHelpers) {
+                boss.draw();
+            }
+
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '20px "Press Start 2P"';
+            ctx.fillText(`Score: ${score}`, 10, 30);
+            ctx.fillText(`High Score: ${highScore}`, 10, 60);
+            ctx.fillText(`Coins: ${coins}`, canvas.width - 150, 30);
+            ctx.fillText(`Planet: ${planets[currentPlanetIndex]}`, 10, 90);
+            
+            if (scoreMultiplierActive) {
+                const timeLeft = Math.max(0, Math.ceil((scoreMultiplierEndTime - Date.now()) / 1000));
+                ctx.fillText(`Multiplier: 1.5x (${timeLeft}s)`, 10, 120);
+            }
+
+            if (isBossFight) {
+                if(isFightingHelpers) {
+                    ctx.fillText(`Helpers Left: ${helpersToDefeat - helpersDefeated}`, canvas.width - 250, 60);
+                } else {
+                    ctx.fillText(`Revives: ${bossRevives}`, canvas.width - 150, 60);
+                }
+            }
+        }
+        
+        function drawMenu() {
+            drawStars();
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '32px "Press Start 2P"';
+            ctx.textAlign = 'center';
+            ctx.fillText("SPACE SHOOTER", canvas.width / 2, canvas.height / 2 - 100);
+            ctx.font = '16px "Press Start 2P"';
+            ctx.fillText(`High Score: ${highScore}`, canvas.width / 2, canvas.height / 2 - 50);
+            ctx.fillText(`Coins: ${coins}`, canvas.width / 2, canvas.height / 2 - 20);
+            ctx.fillText("Press 'Start Game'", canvas.width / 2, canvas.height / 2 + 50);
+            ctx.textAlign = 'left';
+        }
+
+        function spawnObjects() {
+            // Do not spawn objects if in a special state
+            if (isBossFight || isPowerUpRain || isTransitioning) return;
+
+            const currentTime = Date.now();
+            if (currentTime - lastEnemySpawnTime > enemySpawnRate) {
+                const size = Math.random() * 15 + 10;
+                const speed = Math.random() * 2 + 1;
+                const x = Math.random() * (canvas.width - size * 2) + size;
+                enemies.push(new Enemy(x, -size, size, speed));
+
+                if (Math.random() > 0.7) {
+                    const obstacleWidth = Math.random() * 80 + 30;
+                    const obstacleHeight = Math.random() * 40 + 20;
+                    const obstacleX = Math.random() * (canvas.width - obstacleWidth);
+                    obstacles.push(new Obstacle(obstacleX, -obstacleHeight, obstacleWidth, obstacleHeight));
+                }
+
+                lastEnemySpawnTime = currentTime;
+            }
+        }
+        
+        function isColliding(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                   rect1.x + rect1.width > rect2.x &&
+                   rect1.y < rect2.y + rect2.height &&
+                   rect1.y + rect1.height > rect2.y;
+        }
+
+        function checkCollisions() {
+            const playerHitbox = player.getHitbox();
+            if (playerInvincible) return;
+            
+            const isEnemyCollision = (entity) => {
+                return isColliding(playerHitbox, entity.getHitbox());
+            };
+
+            const handlePlayerHit = () => {
+                if (shieldActive) {
+                    shieldActive = false;
+                    return true;
+                }
+                
+                if (isBossFight) {
+                    bossRevives--;
+                    if (bossRevives >= 0) {
+                        player.resetPosition();
+                        enemyBullets = [];
+                        bombs = [];
+                        playerInvincible = true;
+                        invincibleEndTime = Date.now() + 2000; // 2 seconds of invincibility
+                        showMessage(`You lost a revive! ${bossRevives} remaining.`);
+                        setTimeout(hideMessage, 1500);
+                        return true;
+                    } else {
+                        // All revives lost, reset the planet
+                        resetPlanet();
+                        showMessage("Out of revives! Back to the beginning of the planet.");
+                        return true;
+                    }
+                } else {
+                    gameOver();
+                    return true;
+                }
+            };
+
+            // Player vs Enemies, obstacles, bullets, bombs
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                if (isEnemyCollision(enemies[i])) {
+                    if (handlePlayerHit()) return;
+                }
+            }
+            
+            for (let i = obstacles.length - 1; i >= 0; i--) {
+                if (isEnemyCollision(obstacles[i])) {
+                    if (handlePlayerHit()) return;
+                }
+            }
+            
+            for (let i = enemyBullets.length - 1; i >= 0; i--) {
+                if (isEnemyCollision(enemyBullets[i])) {
+                    if (handlePlayerHit()) return;
+                }
+            }
+
+            for (let i = bombs.length - 1; i >= 0; i--) {
+                 if (isColliding(playerHitbox, bombs[i].getHitbox())) {
+                    bombs.splice(i, 1);
+                    if (handlePlayerHit()) return;
+                }
+            }
+
+            // Player vs Power-ups
+            for (let i = powerUps.length - 1; i >= 0; i--) {
+                const pu = powerUps[i];
+                if (isColliding(playerHitbox, pu.getHitbox())) {
+                    if (pu.type === 'shield') {
+                        shieldActive = true;
+                        shieldDuration = baseShieldDuration;
+                        shieldEndTime = Date.now() + shieldDuration;
+                        shield = new Shield(player.x + player.width / 2, player.y + player.height / 2, player.width / 2 + 10);
+                        showMessage("Shield Activated!");
+                        setTimeout(hideMessage, 1000);
+                    } else if (pu.type === 'multiplier') {
+                        scoreMultiplier = 1.5;
+                        scoreMultiplierActive = true;
+                        scoreMultiplierEndTime = Date.now() + 40000;
+                        showMessage("Score Multiplier Activated!");
+                        setTimeout(hideMessage, 1000);
+                    }
+                    powerUps.splice(i, 1);
+                }
+            }
+            
+            // Player bullets vs Enemies
+            for (let bulletIndex = player.bullets.length - 1; bulletIndex >= 0; bulletIndex--) {
+                const bullet = player.bullets[bulletIndex];
+                const bulletHitbox = bullet.getHitbox();
+                
+                // Check collision with boss if in boss fight and helpers are defeated
+                if (isBossFight && boss && !isFightingHelpers && isColliding(bulletHitbox, boss.getHitbox())) {
+                    player.bullets.splice(bulletIndex, 1);
+                    boss.flashTime = Date.now() + 100;
+                    boss.hits++;
+                    // Check if boss loses a life
+                    if (boss.hits >= 10 + (currentPlanetIndex * 5)) {
+                        boss.lives--;
+                        boss.hits = 0;
+                        if (boss.lives <= 0) {
+                            bossDefeated();
+                        } else {
+                             boss.flashTime = Date.now() + 300;
+                            showMessage(`Boss life lost! ${boss.lives} remaining.`);
+                            setTimeout(hideMessage, 1500);
+                        }
+                    }
+                    return;
+                }
+                
+                // Check collision with regular enemies or helpers
+                for (let enemyIndex = enemies.length - 1; enemyIndex >= 0; enemyIndex--) {
+                    const enemy = enemies[enemyIndex];
+                    const enemyHitbox = enemy.getHitbox();
+                    if (isColliding(bulletHitbox, enemyHitbox)) {
+                        score += 10 * scoreMultiplier;
+                        if (!isBossFight) {
+                            enemiesKilledThisLevel++;
+                        }
+                        if (isFightingHelpers) {
+                            helpersDefeated++;
+                        }
+                        player.bullets.splice(bulletIndex, 1);
+                        enemies.splice(enemyIndex, 1);
+                        break;
+                    }
+                }
+            }
+        }
+        
+        function bossDefeated() {
+            // Game is still running, but we are transitioning
+            isTransitioning = true;
+            isBossFight = false;
+            boss = null;
+            coins += 100;
+            saveUserData();
+            
+            // IMPORTANT FIX: Reset the enemy counter immediately after the boss is defeated
+            // This prevents the game from immediately triggering a new boss fight
+            enemiesKilledThisLevel = 0;
+            
+            showMessage("Boss defeated! Bonus coins earned!");
+            
+            setTimeout(() => {
+                // Check for power-up rain
+                if (powerUpRainPermanent && Math.random() < 0.2) {
+                    startPowerUpRain();
+                } else {
+                    hideMessage();
+                    changePlanet();
+                    isTransitioning = false;
+                }
+            }, 3000);
+        }
+
+        function changePlanet() {
+            if (currentPlanetIndex < planets.length - 1) {
+                currentPlanetIndex++;
+                enemiesKilledThisLevel = 0;
+                showMessage(`Entering Planet ${planets[currentPlanetIndex]}!`);
+            } else {
+                gameComplete();
+            }
+        }
+        
+        function startPowerUpRain() {
+            isTransitioning = true;
+            isPowerUpRain = true;
+            showMessage("Power-Up Rain! Collect them all!");
+            enemies = []; // Clear any remaining enemies
+            enemyBullets = [];
+            
+            // Stop any existing rain
+            if (powerUpSpawnInterval) {
+                clearInterval(powerUpSpawnInterval);
+            }
+            
+            // Now, spawn power-ups at regular intervals for 5 seconds
+            const rainDuration = 5000;
+            const spawnRate = 50; // **MODIFIED: Power-ups spawn much more frequently**
+            
+            powerUpSpawnInterval = setInterval(() => {
+                const x = Math.random() * canvas.width;
+                const type = Math.random() > 0.5 ? 'shield' : 'multiplier';
+                powerUps.push(new PowerUp(x, -50, type));
+            }, spawnRate);
+
+            // The game loop will continue to run, so we just need a timer to end the rain
+            setTimeout(() => {
+                clearInterval(powerUpSpawnInterval); // Stop spawning
+                powerUpSpawnInterval = null;
+                powerUps = []; // Clear remaining power-ups
+                isPowerUpRain = false;
+                isTransitioning = false;
+                hideMessage();
+                changePlanet();
+            }, rainDuration);
+        }
+
+        // Renamed to handle the new two-phase boss encounter
+        function startBossEncounter() {
+            isBossFight = true;
+            isFightingHelpers = true;
+            enemies = [];
+            enemyBullets = [];
+            obstacles = [];
+            bombs = [];
+            bossRevives = 5;
+            player.resetPosition();
+            playerInvincible = true;
+            invincibleEndTime = Date.now() + 2000;
+
+            helpersToDefeat = 5 + currentPlanetIndex;
+            helpersDefeated = 0;
+
+            for(let i = 0; i < helpersToDefeat; i++) {
+                const minionX = Math.random() * canvas.width;
+                const minionSize = Math.random() * 10 + 5;
+                const minionSpeed = Math.random() * 2 + 1;
+                enemies.push(new Minion(minionX, -minionSize, minionSize, minionSpeed));
+            }
+
+            showMessage(`Boss Helpers Incoming! Defeat them all to summon the main boss.`);
+            setTimeout(hideMessage, 3000);
+        }
+        
+        function update() {
+            if (!isGameRunning) return; // Halt game loop if not running
+            updatePlayer();
+            shootPlayerBullet();
+            player.bullets.forEach(bullet => bullet.update());
+            player.bullets = player.bullets.filter(bullet => bullet.y > 0);
+            
+            enemyBullets.forEach(bullet => bullet.update());
+            enemyBullets = enemyBullets.filter(bullet => bullet.y < canvas.height);
+            
+            bombs.forEach(bomb => bomb.update());
+            bombs = bombs.filter(bomb => bomb.y < canvas.height);
+            
+            // Logic for power-up rain state
+            if (isPowerUpRain) {
+                powerUps.forEach(pu => pu.update());
+                powerUps = powerUps.filter(pu => pu.y < canvas.height);
+            } else if (isBossFight) {
+                if (isFightingHelpers) {
+                    enemies.forEach(enemy => enemy.update());
+                    enemies = enemies.filter(enemy => enemy.y < canvas.height + enemy.size);
+                    if (helpersDefeated >= helpersToDefeat) {
+                         isFightingHelpers = false;
+                         enemies = [];
+                         boss = new Boss();
+                         playerInvincible = true;
+                         invincibleEndTime = Date.now() + 2000;
+                         showMessage(`Main Boss Incoming!`);
+                         setTimeout(hideMessage, 2000);
+                    }
+                } else if (boss) {
+                    boss.update();
+                    const enemiesOnScreen = [];
+                    for(const enemy of enemies) {
+                        enemy.update();
+                        if (enemy.y > canvas.height + enemy.size) {
+                            continue;
+                        }
+                        enemiesOnScreen.push(enemy);
+                    }
+                    enemies = enemiesOnScreen;
+                }
+            } else { // Normal game mode
+                spawnObjects();
+                
+                const enemiesOnScreen = [];
+                for(const enemy of enemies) {
+                    enemy.update();
+                    if (enemy.y > canvas.height + enemy.size) {
+                        gameOver();
+                        return;
+                    }
+                    enemiesOnScreen.push(enemy);
+                }
+                enemies = enemiesOnScreen;
+
+                obstacles.forEach(obstacle => obstacle.y += 1);
+                obstacles = obstacles.filter(obstacle => obstacle.y < canvas.height);
+            
+                // FIX: Only check the boss spawn condition if the game is not already transitioning
+                if (!isTransitioning && enemiesKilledThisLevel >= enemiesPerPlanet) {
+                    startBossEncounter();
+                }
+            }
+            checkCollisions();
+        }
+
+        function gameLoop() {
+            if (!isGameRunning) {
+                drawMenu();
+            } else {
+                update();
+                draw();
+            }
+            requestAnimationFrame(gameLoop);
+        }
+
+        function showMessage(text) {
+            messageBox.style.display = 'block';
+            messageBox.innerHTML = `<h3 style="margin: 0; font-size: 1.2rem;">${text}</h3>`;
+        }
+
+        function hideMessage() {
+            messageBox.style.display = 'none';
+        }
+
+        function showStore() {
+            hideMessage();
+            storeContainer.style.display = 'block';
+            startButton.style.display = 'none';
+            storeButton.style.display = 'none';
+            updateStoreUI();
+        }
+
+        function hideStore() {
+            storeContainer.style.display = 'none';
+            startButton.style.display = 'block';
+            storeButton.style.display = 'block';
+        }
+        
+        function updateStoreUI() {
+            coinsDisplay.textContent = coins;
+            
+            // Shield UI
+            const shieldCost = baseShieldCost + (shieldLevel * 10);
+            shieldLevelDisplay.textContent = `Level ${shieldLevel + 1} (${baseShieldDuration/1000 * (shieldLevel + 1)}s)`;
+            shieldCostDisplay.textContent = shieldCost;
+            buyShieldBtn.disabled = coins < shieldCost;
+            
+            // 40s Multiplier UI
+            buyTempMultiplierBtn.disabled = coins < tempMultiplierCost;
+
+            // One-Game Multiplier UI
+            buyOneGameMultiplierBtn.disabled = coins < oneGameMultiplierCost;
+            
+            // Power-Up Rain UI
+            powerUpRainItem.style.display = powerUpRainPermanent ? 'none' : 'flex';
+            if (buyPowerUpRainBtn) {
+                 buyPowerUpRainBtn.disabled = coins < powerUpRainCost;
+            }
+        }
+        
+        function buyShield() {
+            const shieldCost = baseShieldCost + (shieldLevel * 10);
+            if (coins >= shieldCost) {
+                coins -= shieldCost;
+                shieldLevel++;
+                saveUserData();
+                updateStoreUI();
+            }
+        }
+        
+        function buyTempMultiplier() {
+             if (coins >= tempMultiplierCost) {
+                coins -= tempMultiplierCost;
+                tempScoreMultiplierPurchased++;
+                saveUserData();
+                updateStoreUI();
+            }
+        }
+
+        function buyOneGameMultiplier() {
+            if (coins >= oneGameMultiplierCost) {
+                coins -= oneGameMultiplierCost;
+                oneGameScoreMultiplierPurchased++;
+                saveUserData();
+            }
+        }
+        
+        function buyPowerUpRain() {
+            if (coins >= powerUpRainCost) {
+                coins -= powerUpRainCost;
+                powerUpRainPermanent = true;
+                saveUserData();
+                updateStoreUI();
+            }
+        }
+
+        function saveUserData() {
+            if (!db || !userId) return;
+            const userDocRef = doc(db, `/artifacts/${appId}/users/${userId}/data/profile`);
+            setDoc(userDocRef, {
+                coins: coins,
+                shieldLevel: shieldLevel,
+                tempScoreMultiplierPurchased: tempScoreMultiplierPurchased,
+                oneGameScoreMultiplierPurchased: oneGameScoreMultiplierPurchased,
+                powerUpRainPermanent: powerUpRainPermanent,
+            }).catch(console.error);
+        }
+        
+        function gameComplete() {
+            isGameRunning = false;
+            
+            showMessage(`Congratulations! You have completed the game by reaching Pluto! Final Score: ${score}`);
+
+            if (db && score > highScore) {
+                const docRef = doc(db, `/artifacts/${appId}/public/data/highScores/global`);
+                setDoc(docRef, { score: score }).catch(console.error);
+                coins += 50;
+                saveUserData();
+            }
+            
+            startButton.textContent = 'Play Again';
+            startButton.style.display = 'block';
+            storeButton.style.display = 'block';
+            
+            resetGame();
+        }
+
+        function gameOver() {
+            if (!isGameRunning) return;
+            isGameRunning = false;
+            
+            let gameOverMessage = `Game Over! Final Score: ${score}`;
+            showMessage(gameOverMessage);
+            startButton.textContent = 'Restart Game';
+            startButton.style.display = 'block';
+            storeButton.style.display = 'block';
+            
+            if (db && score > highScore) {
+                const docRef = doc(db, `/artifacts/${appId}/public/data/highScores/global`);
+                setDoc(docRef, { score: score }).catch(console.error);
+                coins += 50;
+                saveUserData();
+            }
+            
+            resetGame();
+        }
+
+        function resetPlanet() {
+            isGameRunning = false;
+            isBossFight = false;
+            isFightingHelpers = false;
+            score = previousScoreLevel;
+            enemiesKilledThisLevel = 0;
+            player.bullets = [];
+            enemies = [];
+            obstacles = [];
+            enemyBullets = [];
+            bombs = [];
+            boss = null;
+            player.resetPosition();
+            showMessage(`Out of revives! Restarting planet ${planets[currentPlanetIndex]}...`);
+            setTimeout(() => {
+                isGameRunning = true;
+                hideMessage();
+            }, 3000);
+        }
+        
+        function resetGame() {
+            // Reset game-specific state
+            score = 0;
+            currentPlanetIndex = 0;
+            previousScoreLevel = 0;
+            enemiesKilledThisLevel = 0;
+            
+            // Reset temporary power-ups
+            shieldActive = false;
+            scoreMultiplierActive = false;
+            scoreMultiplier = 1;
+            isBossFight = false;
+            isFightingHelpers = false;
+            isPowerUpRain = false;
+            isTransitioning = false; // Reset transitioning flag
+            boss = null;
+            playerInvincible = false;
+
+            player.bullets = [];
+            enemies = [];
+            obstacles = [];
+            enemyBullets = [];
+            bombs = [];
+            player.resetPosition();
+        }
+
+        function startGame() {
+            if (isGameRunning) return;
+            
+            resetGame();
+            
+            hideMessage();
+            resizeCanvas();
+            isGameRunning = true;
+            startButton.textContent = 'Playing...';
+            startButton.style.display = 'none';
+            storeButton.style.display = 'none';
+            
+            // Activate purchased power-ups for this game
+            if (shieldLevel > 0) {
+                shieldActive = true;
+                shieldDuration = baseShieldDuration * shieldLevel;
+                shieldEndTime = Date.now() + shieldDuration;
+                shield = new Shield(player.x + player.width / 2, player.y + player.height / 2, player.width / 2 + 10);
+                coins -= (baseShieldCost + (shieldLevel - 1) * 10);
+                shieldLevel = 0;
+                saveUserData();
+            }
+            
+            if (tempScoreMultiplierPurchased > 0) {
+                scoreMultiplier = 1.5;
+                scoreMultiplierActive = true;
+                scoreMultiplierEndTime = Date.now() + 40000;
+                tempScoreMultiplierPurchased--;
+                saveUserData();
+            }
+
+            if (oneGameMultiplierPurchased > 0) {
+                scoreMultiplier = 1.5;
+                scoreMultiplierActive = true;
+                oneGameMultiplierPurchased--;
+                saveUserData();
+            }
+        }
+
+        function startGameSetup() {
+            canvas = document.getElementById('gameCanvas');
+            ctx = canvas.getContext('2d');
+            messageBox = document.getElementById('messageBox');
+            storeContainer = document.getElementById('storeContainer');
+            
+            leftButton = document.getElementById('leftButton');
+            rightButton = document.getElementById('rightButton');
+            startButton = document.getElementById('startButton');
+            storeButton = document.getElementById('storeButton');
+            backToMenuBtn = document.getElementById('backToMenuBtn');
+            
+            coinsDisplay = document.getElementById('coinsDisplay');
+            shieldLevelDisplay = document.getElementById('shieldLevelDisplay');
+            shieldCostDisplay = document.getElementById('shieldCostDisplay');
+            buyShieldBtn = document.getElementById('buyShieldBtn');
+            buyTempMultiplierBtn = document.getElementById('buyTempMultiplierBtn');
+            buyOneGameMultiplierBtn = document.getElementById('buyOneGameMultiplierBtn');
+            powerUpRainItem = document.getElementById('powerUpRainItem');
+            buyPowerUpRainBtn = document.getElementById('buyPowerUpRainBtn');
+
+            leftButton.addEventListener('mousedown', () => player.movingLeft = true);
+            leftButton.addEventListener('mouseup', () => player.movingLeft = false);
+            leftButton.addEventListener('touchstart', (e) => { e.preventDefault(); player.movingLeft = true; });
+            leftButton.addEventListener('touchend', (e) => { e.preventDefault(); player.movingLeft = false; });
+
+            rightButton.addEventListener('mousedown', () => player.movingRight = true);
+            rightButton.addEventListener('mouseup', () => player.movingRight = false);
+            rightButton.addEventListener('touchstart', (e) => { e.preventDefault(); player.movingRight = true; });
+            rightButton.addEventListener('touchend', (e) => { e.preventDefault(); player.movingRight = false; });
+            
+            startButton.addEventListener('click', startGame);
+            storeButton.addEventListener('click', showStore);
+            backToMenuBtn.addEventListener('click', hideStore);
+
+            buyShieldBtn.addEventListener('click', buyShield);
+            buyTempMultiplierBtn.addEventListener('click', buyTempMultiplier);
+            buyOneGameMultiplierBtn.addEventListener('click', buyOneGameMultiplier);
+            buyPowerUpRainBtn.addEventListener('click', buyPowerUpRain);
+
+            window.addEventListener('resize', () => {
+                resizeCanvas();
+                if (storeContainer.style.display === 'block') {
+                     updateStoreUI();
+                }
+            });
+            window.addEventListener('keydown', handleKeydown);
+            window.addEventListener('keyup', handleKeyup);
+            
+            resizeCanvas();
+        }
+        
+        async function initFirebaseAndData() {
+            if (Object.keys(firebaseConfig).length > 0) {
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                    console.log("Firebase Initialized.");
+                    
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
+                        console.log("Signed in with custom token.");
+                    } else {
+                        await signInAnonymously(auth);
+                        console.log("Signed in anonymously.");
+                    }
+                    
+                    onAuthStateChanged(auth, (user) => {
+                        if (user) {
+                            userId = user.uid;
+                            console.log("User ID:", userId);
+                            initListeners();
+                        } else {
+                            console.log("No user signed in.");
+                            userId = null;
+                        }
+                    });
+                } catch (error) {
+                    console.error("Firebase initialization failed:", error);
+                }
+            } else {
+                console.log("Firebase config not available. High scores and power-ups will not be saved.");
+            }
+        }
+
+        function initListeners() {
+            if (!db || !userId) return;
+            if (unsubscribeHighScore) {
+                unsubscribeHighScore();
+            }
+            if (unsubscribeUserData) {
+                unsubscribeUserData();
+            }
+            
+            const highScoreDocRef = doc(db, `/artifacts/${appId}/public/data/highScores/global`);
+            unsubscribeHighScore = onSnapshot(highScoreDocRef, (docSnap) => {
+                highScore = docSnap.exists() ? docSnap.data().score || 0 : 0;
+                if (!docSnap.exists()) {
+                    setDoc(highScoreDocRef, { score: 0 });
+                }
+            }, (error) => {
+                console.error("Failed to get high score:", error);
+                highScore = 0;
+            });
+            
+            const userDocRef = doc(db, `/artifacts/${appId}/users/${userId}/data/profile`);
+            unsubscribeUserData = onSnapshot(userDocRef, (docSnap) => {
+                const data = docSnap.data();
+                if (data) {
+                    coins = data.coins || 0;
+                    shieldLevel = data.shieldLevel || 0;
+                    tempScoreMultiplierPurchased = data.tempScoreMultiplierPurchased || 0;
+                    oneGameScoreMultiplierPurchased = data.oneGameScoreMultiplierPurchased || 0;
+                    powerUpRainPermanent = data.powerUpRainPermanent || false;
+                } else {
+                    setDoc(userDocRef, {
+                        coins: 0,
+                        shieldLevel: 0,
+                        tempScoreMultiplierPurchased: 0,
+                        oneGameScoreMultiplierPurchased: 0,
+                        powerUpRainPermanent: false,
+                    });
+                }
+                
+                if (storeContainer.style.display === 'block') {
+                    updateStoreUI();
+                }
+            }, (error) => {
+                console.error("Failed to get user data:", error);
+            });
+        }
+        
+        window.addEventListener('load', () => {
+            startGameSetup();
+            initFirebaseAndData();
+            gameLoop(); // Start the main game loop immediately on load
+        });
+    </script>
+</body>
+</html>
